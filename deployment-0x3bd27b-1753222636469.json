@@ -1,0 +1,20 @@
+{
+  "wallet": {
+    "address": "0x6C9A8319f08f23E31c872f232eD3630704F4e130",
+    "email": "eiman@thirdweb.com",
+    "created_at": "2025-07-22T22:15:42.085Z",
+    "chain_id": 84532,
+    "isNewUser": false,
+    "token": "eyJhbGciOiJSUzI1NiIs..."
+  },
+  "contract": {
+    "contractAddress": "0x3bd27ba997354b1505b27b7e2ca6fd6ff7b2437d",
+    "transactionId": "fbd8b85b-40be-4beb-a9fd-3eb06c13fddc",
+    "chainId": 84532,
+    "deployer": "0x6C9A8319f08f23E31c872f232eD3630704F4e130",
+    "tokenName": "\"EimanToken\"",
+    "tokenSymbol": "\"ET\"",
+    "tokenDescription": "testing",
+    "deployed_at": "2025-07-22T22:16:12.622Z"
+  }
+}
