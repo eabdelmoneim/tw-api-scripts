@@ -5,6 +5,7 @@ A comprehensive TypeScript script that uses the Thirdweb API to create wallets u
 ## Features
 
 - ✅ Create wallets using email authentication
+- ✅ Create ecosystem wallets with custom ecosystem partner IDs (optional)
 - ✅ Deploy ERC-20 token contracts using [thirdweb's TokenERC20](https://thirdweb.com/thirdweb.eth/TokenERC20)
 - ✅ Check transaction status by transaction ID
 - ✅ Interactive CLI interface with token configuration
@@ -42,7 +43,7 @@ cp src/env.example .env
 
 ```env
 THIRDWEB_API_KEY=your_actual_secret_key_here
-THIRDWEB_BASE_URL=https://api.thirdweb-dev.com
+THIRDWEB_BASE_URL=https://api.thirdweb.com
 DEFAULT_CHAIN_ID=1
 ```
 
@@ -59,20 +60,31 @@ npm run dev
 ```
 
 This will:
-1. Prompt you for an email address
-2. Send a login code to the email
-3. Prompt you to enter the OTP code
-4. Create the wallet and display the results
-5. Ask if you want to deploy an ERC-20 contract
-6. If yes, prompt for token details (name, symbol, description, etc.)
-7. Deploy the contract and display results
+1. Ask if you want to create an ecosystem wallet
+2. If yes, prompt for the ecosystem ID
+3. If yes, ask if you want to provide an ecosystem partner ID (optional)
+4. If yes, prompt for the ecosystem partner ID
+5. Prompt you for an email address
+6. Send a login code to the email
+7. Prompt you to enter the OTP code
+8. Create the wallet and display the results
+9. Ask if you want to deploy an ERC-20 contract
+10. If yes, prompt for token details (name, symbol, description, etc.)
+11. Deploy the contract and display results
 
 ### Non-Interactive Mode
 
-You can also provide the email via command line arguments:
+You can also provide arguments via command line:
 
 ```bash
+# Regular wallet
 npm run dev -- --email user@example.com
+
+# Ecosystem wallet
+npm run dev -- --email user@example.com --ecosystem-id my-ecosystem-id
+
+# Ecosystem wallet with partner ID
+npm run dev -- --email user@example.com --ecosystem-id my-ecosystem-id --ecosystem-partner-id my-partner-id
 ```
 
 ### Check Transaction Status
@@ -117,7 +129,7 @@ The main client class for interacting with the Thirdweb API.
 ```typescript
 const client = new ThirdwebClient({
   apiKey: 'your-secret-key',
-  baseUrl: 'https://api.thirdweb-dev.com',
+  baseUrl: 'https://api.thirdweb.com',
   chainId: 1 // optional
 });
 ```
@@ -140,17 +152,37 @@ Verifies the OTP code and returns wallet information.
 const response = await client.verifyLoginCode('user@example.com', '123456');
 ```
 
-##### `createWalletWithEmail(email, getOtpCode)`
+##### `createWalletWithEmail(email, getOtpCode, ecosystemId?, ecosystemPartnerId?)`
 
-Complete wallet creation flow - sends code, gets OTP from user, and verifies.
+Complete wallet creation flow - sends code, gets OTP from user, and verifies. Optionally accepts ecosystem ID and ecosystem partner ID for creating ecosystem wallets.
 
 ```typescript
+// Regular wallet creation
 const walletInfo = await client.createWalletWithEmail(
   'user@example.com',
   async () => {
     // Function that returns the OTP code
     return await getUserInput();
   }
+);
+
+// Ecosystem wallet creation
+const ecosystemWalletInfo = await client.createWalletWithEmail(
+  'user@example.com',
+  async () => {
+    return await getUserInput();
+  },
+  'my-ecosystem-id' // Ecosystem ID for ecosystem wallet
+);
+
+// Ecosystem wallet with partner ID
+const ecosystemWalletWithPartner = await client.createWalletWithEmail(
+  'user@example.com',
+  async () => {
+    return await getUserInput();
+  },
+  'my-ecosystem-id', // Ecosystem ID
+  'my-ecosystem-partner-id' // Optional ecosystem partner ID
 );
 ```
 

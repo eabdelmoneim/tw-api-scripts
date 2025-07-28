@@ -2,6 +2,8 @@ export interface ThirdwebConfig {
   apiKey: string;
   baseUrl: string;
   chainId?: number;
+  ecosystemId?: string;
+  ecosystemPartnerId?: string;
 }
 
 export interface SendLoginCodeRequest {
@@ -35,6 +37,8 @@ export interface WalletInfo {
   chain_id?: number;
   isNewUser?: boolean;
   token?: string;
+  ecosystemId?: string;
+  ecosystemPartnerId?: string;
 }
 
 export interface ApiError {

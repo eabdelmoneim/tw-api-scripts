@@ -19,14 +19,26 @@ export class ThirdwebClient {
 
   constructor(config: ThirdwebConfig) {
     this.config = config;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-secret-key': config.apiKey, // Use x-secret-key header instead of Authorization
+      'x-sdk-name': 'typescript-wallet-creator',
+      'x-sdk-version': '1.0.0'
+    };
+
+    // Add ecosystem headers if provided
+    if (config.ecosystemId) {
+      headers['x-ecosystem-id'] = config.ecosystemId;
+    }
+    
+    if (config.ecosystemPartnerId) {
+      headers['x-ecosystem-partner-id'] = config.ecosystemPartnerId;
+    }
+
     this.client = axios.create({
       baseURL: config.baseUrl,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-secret-key': config.apiKey, // Use x-secret-key header instead of Authorization
-        'x-sdk-name': 'typescript-wallet-creator',
-        'x-sdk-version': '1.0.0'
-      },
+      headers,
       timeout: 30000
     });
 
@@ -57,16 +69,27 @@ export class ThirdwebClient {
   /**
    * Send a login code to the specified email address
    */
-  async sendLoginCode(email: string): Promise<SendLoginCodeResponse> {
+  async sendLoginCode(email: string, ecosystemId?: string, ecosystemPartnerId?: string): Promise<SendLoginCodeResponse> {
     try {
       const payload: SendLoginCodeRequest = {
         email,
         type: 'email'
       };
 
+      const headers: Record<string, string> = {};
+      
+      if (ecosystemId) {
+        headers['x-ecosystem-id'] = ecosystemId;
+      }
+      
+      if (ecosystemPartnerId) {
+        headers['x-ecosystem-partner-id'] = ecosystemPartnerId;
+      }
+
       const response: AxiosResponse<SendLoginCodeResponse> = await this.client.post(
-        '/v1/wallets/login/code',
-        payload
+        '/v1/wallets/user/code',
+        payload,
+        { headers }
       );
 
       return response.data;
@@ -79,7 +102,7 @@ export class ThirdwebClient {
   /**
    * Verify the login code and create/access wallet
    */
-  async verifyLoginCode(email: string, code: string): Promise<VerifyLoginCodeResponse> {
+  async verifyLoginCode(email: string, code: string, ecosystemId?: string, ecosystemPartnerId?: string): Promise<VerifyLoginCodeResponse> {
     try {
       const payload: VerifyLoginCodeRequest = {
         email,
@@ -87,9 +110,20 @@ export class ThirdwebClient {
         type: 'email'
       };
 
+      const headers: Record<string, string> = {};
+      
+      if (ecosystemId) {
+        headers['x-ecosystem-id'] = ecosystemId;
+      }
+      
+      if (ecosystemPartnerId) {
+        headers['x-ecosystem-partner-id'] = ecosystemPartnerId;
+      }
+
       const response: AxiosResponse<VerifyLoginCodeResponse> = await this.client.post(
-        '/v1/wallets/login/code/verify',
-        payload
+        '/v1/wallets/user/code/verify',
+        payload,
+        { headers }
       );
 
       return response.data;
@@ -105,14 +139,22 @@ export class ThirdwebClient {
    */
   async createWalletWithEmail(
     email: string, 
-    getOtpCode: () => Promise<string>
+    getOtpCode: () => Promise<string>,
+    ecosystemId?: string,
+    ecosystemPartnerId?: string
   ): Promise<WalletInfo> {
     try {
       console.log(`Starting wallet creation process for email: ${email}`);
+      if (ecosystemId) {
+        console.log(`Using ecosystem ID: ${ecosystemId}`);
+        if (ecosystemPartnerId) {
+          console.log(`Using ecosystem partner ID: ${ecosystemPartnerId}`);
+        }
+      }
 
       // Step 1: Send login code
       console.log('Sending login code...');
-      const codeResponse = await this.sendLoginCode(email);
+      const codeResponse = await this.sendLoginCode(email, ecosystemId, ecosystemPartnerId);
       
       if (!codeResponse.success) {
         throw new Error(`Failed to send login code: ${codeResponse.error || 'Unknown error'}`);
@@ -125,7 +167,7 @@ export class ThirdwebClient {
 
       // Step 3: Verify code and create/access wallet
       console.log('Verifying login code...');
-      const verifyResponse = await this.verifyLoginCode(email, otpCode);
+      const verifyResponse = await this.verifyLoginCode(email, otpCode, ecosystemId, ecosystemPartnerId);
 
       if (!verifyResponse.walletAddress) {
         throw new Error(`Failed to verify login code: ${verifyResponse.error || 'No wallet address returned'}`);
@@ -142,7 +184,9 @@ export class ThirdwebClient {
         created_at: new Date().toISOString(),
         chain_id: this.config.chainId,
         isNewUser: verifyResponse.isNewUser,
-        token: verifyResponse.token
+        token: verifyResponse.token,
+        ecosystemId: ecosystemId,
+        ecosystemPartnerId: ecosystemPartnerId
       };
 
     } catch (error) {

@@ -95,9 +95,9 @@ async function main() {
     console.log('🚀 Thirdweb Wallet Creator & ERC-20 Deployer');
     console.log('============================================\n');
 
-    // Validate required environment variables
+    // Initialize Thirdweb client - will be created after getting ecosystem info
     const apiKey = process.env.THIRDWEB_API_KEY;
-    const baseUrl = process.env.THIRDWEB_BASE_URL || 'https://api.thirdweb-dev.com';
+    const baseUrl = process.env.THIRDWEB_BASE_URL || 'https://api.thirdweb.com';
 
     if (!apiKey) {
       console.error('❌ Error: THIRDWEB_API_KEY is required in environment variables');
@@ -105,11 +105,43 @@ async function main() {
       process.exit(1);
     }
 
-    // Initialize Thirdweb client
+    // Ask if user wants to create an ecosystem wallet
+    const createEcosystemWallet = await askQuestion('Do you want to create an ecosystem wallet? (y/n): ');
+    
+    let ecosystemId: string | undefined;
+    let ecosystemPartnerId: string | undefined;
+    
+    if (createEcosystemWallet.toLowerCase() === 'y' || createEcosystemWallet.toLowerCase() === 'yes') {
+      // Get ecosystem ID (required for ecosystem wallets)
+      ecosystemId = await askQuestion('Enter the ecosystem ID: ');
+      if (!ecosystemId.trim()) {
+        console.error('❌ Ecosystem ID cannot be empty. Please try again.');
+        rl.close();
+        return;
+      }
+      console.log(`\n🌐 Using ecosystem ID: ${ecosystemId}`);
+
+      // Ask if user wants to provide ecosystem partner ID (optional)
+      const wantsPartnerIdInput = await askQuestion('Do you want to provide an ecosystem partner ID? (y/n): ');
+      
+      if (wantsPartnerIdInput.toLowerCase() === 'y' || wantsPartnerIdInput.toLowerCase() === 'yes') {
+        ecosystemPartnerId = await askQuestion('Enter the ecosystem partner ID: ');
+        if (!ecosystemPartnerId.trim()) {
+          console.error('❌ Ecosystem partner ID cannot be empty. Please try again.');
+          rl.close();
+          return;
+        }
+        console.log(`\n🤝 Using ecosystem partner ID: ${ecosystemPartnerId}`);
+      }
+    }
+
+    // Now create the config
     const config: ThirdwebConfig = {
       apiKey,
       baseUrl,
-      chainId: process.env.DEFAULT_CHAIN_ID ? parseInt(process.env.DEFAULT_CHAIN_ID) : 1
+      chainId: process.env.DEFAULT_CHAIN_ID ? parseInt(process.env.DEFAULT_CHAIN_ID) : 1,
+      ecosystemId,
+      ecosystemPartnerId
     };
 
     const client = new ThirdwebClient(config);
@@ -130,7 +162,9 @@ async function main() {
     
     const walletInfo: WalletInfo = await client.createWalletWithEmail(
       email,
-      getOtpFromUser
+      getOtpFromUser,
+      ecosystemId,
+      ecosystemPartnerId
     );
 
     // Display wallet results
@@ -142,6 +176,12 @@ async function main() {
     console.log(`🕐 Created At: ${walletInfo.created_at}`);
     if (walletInfo.chain_id) {
       console.log(`⛓️  Chain ID: ${walletInfo.chain_id}`);
+    }
+    if (walletInfo.ecosystemId) {
+      console.log(`🌐 Ecosystem ID: ${walletInfo.ecosystemId}`);
+    }
+    if (walletInfo.ecosystemPartnerId) {
+      console.log(`🤝 Ecosystem Partner ID: ${walletInfo.ecosystemPartnerId}`);
     }
     console.log('================================\n');
 
@@ -255,12 +295,13 @@ async function handleCliArgs() {
 ==================================================
 
 Usage:
-  npm run dev                     # Interactive mode
-  npm run dev -- --email <email> # Non-interactive mode (you'll still need to enter OTP and token details)
+  npm run dev [options]
 
 Options:
-  --email <email>     Email address for wallet creation
-  --help, -h          Show this help message
+  --email <email>                 Email address for wallet creation
+  --ecosystem-id <id>             Ecosystem ID (optional, for ecosystem wallets)
+  --ecosystem-partner-id <id>     Ecosystem partner ID (optional)
+  --help, -h                      Show this help message
 
 Environment Variables:
   THIRDWEB_API_KEY     Your Thirdweb Secret Key (required)
@@ -270,17 +311,23 @@ Environment Variables:
 Examples:
   npm run dev
   npm run dev -- --email user@example.com
+  npm run dev -- --email user@example.com --ecosystem-id my-ecosystem
+  npm run dev -- --email user@example.com --ecosystem-id my-ecosystem --ecosystem-partner-id my-partner
 
 Features:
   • Create wallets using email authentication
+  • Create ecosystem wallets with ecosystem ID (optional)
+  • Optional ecosystem partner ID support
   • Deploy ERC-20 token contracts
   • Interactive prompts for token configuration
-  • Export wallet and contract information
-`);
+  • Export wallet and contract information`);
     process.exit(0);
   }
 
   const emailIndex = args.indexOf('--email');
+  const ecosystemPartnerIdIndex = args.indexOf('--ecosystem-partner-id');
+  const ecosystemIdIndex = args.indexOf('--ecosystem-id');
+  
   if (emailIndex !== -1 && emailIndex + 1 < args.length) {
     const email = args[emailIndex + 1];
     
@@ -289,7 +336,25 @@ Features:
       process.exit(1);
     }
 
-    await runNonInteractive(email);
+    let ecosystemId: string | undefined;
+    if (ecosystemIdIndex !== -1 && ecosystemIdIndex + 1 < args.length) {
+      ecosystemId = args[ecosystemIdIndex + 1];
+      if (!ecosystemId.trim()) {
+        console.error('❌ Ecosystem ID cannot be empty');
+        process.exit(1);
+      }
+    }
+
+    let ecosystemPartnerId: string | undefined;
+    if (ecosystemPartnerIdIndex !== -1 && ecosystemPartnerIdIndex + 1 < args.length) {
+      ecosystemPartnerId = args[ecosystemPartnerIdIndex + 1];
+      if (!ecosystemPartnerId.trim()) {
+        console.error('❌ Ecosystem partner ID cannot be empty');
+        process.exit(1);
+      }
+    }
+
+    await runNonInteractive(email, ecosystemId, ecosystemPartnerId);
     return;
   }
 
@@ -300,10 +365,10 @@ Features:
 /**
  * Non-interactive mode (still needs OTP input and token details)
  */
-async function runNonInteractive(email: string) {
+async function runNonInteractive(email: string, ecosystemId?: string, ecosystemPartnerId?: string) {
   try {
     const apiKey = process.env.THIRDWEB_API_KEY;
-    const baseUrl = process.env.THIRDWEB_BASE_URL || 'https://api.thirdweb-dev.com';
+    const baseUrl = process.env.THIRDWEB_BASE_URL || 'https://api.thirdweb.com';
 
     if (!apiKey) {
       console.error('❌ Error: THIRDWEB_API_KEY is required');
@@ -313,20 +378,36 @@ async function runNonInteractive(email: string) {
     const config: ThirdwebConfig = {
       apiKey,
       baseUrl,
-      chainId: process.env.DEFAULT_CHAIN_ID ? parseInt(process.env.DEFAULT_CHAIN_ID) : 1
+      chainId: process.env.DEFAULT_CHAIN_ID ? parseInt(process.env.DEFAULT_CHAIN_ID) : 1,
+      ecosystemId,
+      ecosystemPartnerId
     };
 
     const client = new ThirdwebClient(config);
 
     console.log(`📧 Creating wallet for: ${email}`);
+    if (ecosystemId) {
+      console.log(`🌐 Using ecosystem ID: ${ecosystemId}`);
+      if (ecosystemPartnerId) {
+        console.log(`🤝 Using ecosystem partner ID: ${ecosystemPartnerId}`);
+      }
+    }
     
     const walletInfo = await client.createWalletWithEmail(
       email,
-      getOtpFromUser
+      getOtpFromUser,
+      ecosystemId,
+      ecosystemPartnerId
     );
 
     console.log(`✅ Wallet created: ${walletInfo.address}`);
     console.log(`👤 New User: ${walletInfo.isNewUser ? 'Yes' : 'No'}`);
+    if (walletInfo.ecosystemId) {
+      console.log(`🌐 Ecosystem ID: ${walletInfo.ecosystemId}`);
+    }
+    if (walletInfo.ecosystemPartnerId) {
+      console.log(`🤝 Ecosystem Partner ID: ${walletInfo.ecosystemPartnerId}`);
+    }
 
     // Ask about contract deployment in non-interactive mode too
     const deployContract = await askQuestion('Deploy ERC-20 contract? (y/n): ');
@@ -357,4 +438,4 @@ if (require.main === module) {
   });
 }
 
-export { ThirdwebClient, ThirdwebConfig, WalletInfo, TokenMetadata, ContractInfo }; 
+export { ThirdwebClient, ThirdwebConfig, WalletInfo, TokenMetadata, ContractInfo };

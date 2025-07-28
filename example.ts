@@ -6,7 +6,7 @@ async function createWalletAndDeployContractExample() {
   // Configure the client
   const config: ThirdwebConfig = {
     apiKey: 'your-secret-key-here', // Replace with your actual API key
-    baseUrl: 'https://api.thirdweb-dev.com',
+    baseUrl: 'https://api.thirdweb.com',
     chainId: 1 // Ethereum mainnet
   };
 
@@ -15,6 +15,8 @@ async function createWalletAndDeployContractExample() {
   try {
     // Step 1: Create wallet using email authentication
     console.log('Creating wallet...');
+    
+    // Option 1: Regular wallet creation (no ecosystem)
     const walletInfo = await client.createWalletWithEmail(
       'user@example.com',
       async () => {
@@ -22,12 +24,29 @@ async function createWalletAndDeployContractExample() {
         // For this example, we're returning a placeholder
         return '123456'; // This would be the OTP code from email
       }
+      // No ecosystem parameters = regular wallet
     );
+
+    // Option 2: Ecosystem wallet creation
+    // const walletInfo = await client.createWalletWithEmail(
+    //   'user@example.com',
+    //   async () => {
+    //     return '123456'; // OTP code from email
+    //   },
+    //   'my-ecosystem-id', // Ecosystem ID for ecosystem wallet
+    //   'my-ecosystem-partner-id' // Optional ecosystem partner ID
+    // );
 
     console.log('Wallet created successfully!');
     console.log('Address:', walletInfo.address);
     console.log('Email:', walletInfo.email);
     console.log('Is New User:', walletInfo.isNewUser);
+    if (walletInfo.ecosystemId) {
+      console.log('Ecosystem ID:', walletInfo.ecosystemId);
+    }
+    if (walletInfo.ecosystemPartnerId) {
+      console.log('Ecosystem Partner ID:', walletInfo.ecosystemPartnerId);
+    }
 
     // Step 2: Deploy ERC-20 token contract
     const tokenMetadata: TokenMetadata = {
@@ -47,7 +66,7 @@ async function createWalletAndDeployContractExample() {
 
     console.log('Contract deployed successfully!');
     console.log('Contract Address:', contractInfo.contractAddress);
-    console.log('Transaction Hash:', contractInfo.transactionHash);
+    console.log('Transaction ID:', contractInfo.transactionId);
     console.log('Token Name:', contractInfo.tokenName);
     console.log('Token Symbol:', contractInfo.tokenSymbol);
 
@@ -60,7 +79,7 @@ async function createWalletAndDeployContractExample() {
 async function deployContractOnlyExample() {
   const config: ThirdwebConfig = {
     apiKey: 'your-secret-key-here',
-    baseUrl: 'https://api.thirdweb-dev.com',
+    baseUrl: 'https://api.thirdweb.com',
     chainId: 137 // Polygon
   };
 
